@@ -7,7 +7,7 @@ ini_set('display_startup_errors', '1');
 
 error_reporting(E_ALL);
 $sports = ['Football', 'Tennis', 'Ping pong', 'Volley ball', 'Rugby', 'Horse riding', 'Swimming', 'Judo', 'Karate'];
-
+// if comments include (Monorax) then the comment is made by myself, keeps things a bit more organized.
 function openConnection(): PDO
 {
     // No bugs in this function, just use the right credentials.
@@ -22,21 +22,21 @@ function openConnection(): PDO
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ];
 
-    $pdo= new PDO('mysql:host=' . $dbhost . ';dbname=' . $db, $dbuser, $dbpass, $driverOptions);
+    return new PDO('mysql:host=' . $dbhost . ';dbname=' . $db, $dbuser, $dbpass, $driverOptions);
 
-    return $pdo;
+
 }
 
 $pdo = openConnection();
 
 if(!empty($_POST['firstname']) && !empty($_POST['lastname'])) {
     //@todo possible bug below?
-    if(!empty($_POST['id'])) {
+    if(empty($_POST['id'])) {
         $handle = $pdo->prepare('INSERT INTO user (firstname, lastname, year) VALUES (:firstname, :lastname, :year)');
         $message = 'Your record has been added';
     } else {
         //@todo why does this not work?
-        $handle = $pdo->prepare('UPDATE user VALUES (firstname = :firstname, lastname = :lastname, year = :year) WHERE id = :id');
+        $handle = $pdo->prepare('UPDATE user SET firstname = :firstname, lastname = :lastname, year = :year WHERE user_id = :id');
         $handle->bindValue(':id', $_POST['id']);
         $message = 'Your record has been updated';
     }
@@ -62,37 +62,38 @@ if(!empty($_POST['firstname']) && !empty($_POST['lastname'])) {
         $handle = $pdo->prepare('INSERT INTO sport (user_id, sport) VALUES (:userId, :sport)');
         $handle->bindValue(':userId', $userId);
         $handle->bindValue(':sport', $sport);
+        //if you choose more than 3 sports, you get a constraint error (Monorax)
         $handle->execute();
     }
 }
 elseif(isset($_POST['delete'])) {
     //@todo BUG? Why does always delete all my users?
-    $handle = $pdo->prepare('DELETE FROM user');
+    $handle = $pdo->prepare('DELETE FROM user WHERE ');
     //The line below just gave me an error, probably not important. Annoying line.
-    //$handle->bindValue(':id', $_POST['id']);
+    $handle->bindValue(':id', $_POST['id']);
     $handle->execute();
 
     $message = 'Your record has been deleted';
 }
 
 //@todo Invalid query?
-$handle = $pdo->prepare('SELECT id, concat_ws(firstname, lastname, " ") AS name, sport FROM user LEFT JOIN sport ON id = sport.user_id where year = :year order by sport');
+$handle = $pdo->prepare('SELECT  id, concat_ws(firstname, lastname, " ") AS name, sport FROM user LEFT JOIN sport ON id = sport.user_id where year = :year order by sport');
 $handle->bindValue(':year', date('Y'));
-$handle->execute();
+//$handle->execute();
 $users = $handle->fetchAll();
 
 $saveLabel = 'Save record';
 if(!empty($_GET['id'])) {
     $saveLabel = 'Update record';
 
-    $handle = $pdo->prepare('SELECT id, firstname, lastname FROM user where id = :id');
+    $handle = $pdo->prepare('SELECT  user_firstname.id, user_lastname.id,firstname,lastname FROM user WHERE id = :id');
     $handle->bindValue(':id', $_GET['id']);
     $handle->execute();
     $selectedUser = $handle->fetch();
 
     //This segment checks all the current sports for an existing user when you update him. Currently that is not working however. :-(
     $selectedUser['sports'] = [];
-    $handle = $pdo->prepare('SELECT sport FROM sport where user_id = :id');
+    $handle = $pdo->prepare('SELECT  sport FROM sport WHERE user_id = :id');
     $handle->bindValue(':id', $_GET['id']);
     $handle->execute();
     foreach($handle->fetchAll() AS $sport) {
@@ -107,6 +108,7 @@ if(empty($selectedUser['id'])) {
         'lastname' => '',
         'sports' => []
     ];
+
 }
 
 require 'view.php';
